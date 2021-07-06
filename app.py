@@ -7,7 +7,7 @@ import pandas as pd
 import streamlit as st
 import datetime
 import myfitnesspal
-import statsmodels
+import statsmodels  # noqa
 import plotly.express as px
 from dateutil.relativedelta import relativedelta
 from typing import Optional, Tuple, Dict, Any
@@ -99,7 +99,7 @@ start_date = datetime.date(2021, 5, 25)
 st.sidebar.header("Variables")
 
 user = st.sidebar.text_input("MFP Username", "Paradoxdruid")
-MFP_pass = st.sidebar.text_input("MFP Password")
+MFP_pass = st.sidebar.text_input("MFP Password", type="password")
 
 if st.sidebar.button("Process"):
     weight = get_MFP_weights(user, MFP_pass, start_date)
