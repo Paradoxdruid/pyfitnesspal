@@ -1,58 +1,85 @@
 #!/usr/bin/env python3
-"""Quick Chair Pay Calculator."""
+"""Quick MyFitnessPal helper app."""
 
-import plotly.graph_objects as go
+# import plotly.graph_objects as go
 import plotly.io
 import pandas as pd
 import streamlit as st
+import datetime
+import myfitnesspal
+import statsmodels
+import plotly.express as px
+from dateutil.relativedelta import relativedelta
+from typing import Optional, Tuple, Dict, Any
 
 plotly.io.templates.default = "seaborn"
 
-st.title("Chair Pay Calculator")
-
-st.sidebar.header("Variables")
-
-years = int(st.sidebar.number_input("Years Remaining at MSU Denver", value=10))
-chair_years = int(st.sidebar.number_input("Years Remaining as Chair", value=6))
-base_salary = float(st.sidebar.number_input("Current Base Salary", value=100000))
-chair_stipend = float(st.sidebar.number_input("Current Chair Stipend", value=30000))
-NEW_STIPEND = 28500
+st.title("PyFitnessPal")
 
 
-def calculate(years, chair_years, base_salary, chair_stipend, NEW_STIPEND):
-    years_list = list(range(2021, 2021 + years))
-    five_sixths = (5 / 6) * (base_salary + chair_stipend)
-    current = ([base_salary + chair_stipend] * chair_years) + (
-        [five_sixths] * (years - chair_years)
+@st.cache()
+def MFP_dict_to_df(weight_dict: Dict[str, Any]) -> pd.DataFrame:
+    """Convert dict returned from myfitnesspal.get_measurements to DataFrame.
+
+    Args:
+        weight_dict (Dict[Any]): ordered dict of date and weight measurements.
+
+    Returns:
+        pd.DataFrame: dataframe of date and weight measurements."""
+    df = pd.DataFrame.from_dict(weight_dict, orient="index")
+    df = df.reset_index().rename(columns={"index": "Date", 0: "Weight"})
+
+    return df
+
+
+@st.cache()
+def new_plot_with_trend(
+    df: pd.DataFrame, start: Optional[str] = None, end: Optional[str] = None, **kwargs
+) -> Tuple[float]:
+    """Quick plot of MFP data with trendline.
+
+    Args:
+        df (pd.DataFrame): dataframe of date/weight data
+        start (str, optional): start date to graph
+        end (str, optional): end date to graph
+
+    Returns:
+        Tuple[float]: m and b for 'y = mx + b'
+    """
+
+    if start:
+        dt_start = datetime.datetime.strptime(start, "%Y-%m-%d").date()
+        df = df[df.Date > dt_start]
+    if end:
+        dt_end = datetime.datetime.strptime(end, "%Y-%m-%d").date()
+        df = df[df.Date < dt_end]
+
+    new_df = df.copy()
+    new_df.Date = new_df.Date.apply(lambda x: datetime.datetime(x.year, x.month, x.day))
+
+    fig = px.line(new_df, x="Date", y="Weight", **kwargs)
+    fig2 = px.scatter(
+        new_df.iloc[:14],
+        x="Date",
+        y="Weight",
+        trendline="ols",
+        trendline_color_override="red",
     )
-    alt = ([base_salary + NEW_STIPEND] * chair_years) + (
-        [base_salary] * (years - chair_years)
-    )
+    fig.add_trace(fig2.data[1])
+    results = px.get_trendline_results(fig2)
+    # results.px_fit_results.iloc[0].summary()
+    m = results.px_fit_results.iloc[0].params[1]
+    b = results.px_fit_results.iloc[0].params[0]
 
-    cur_df = pd.DataFrame.from_dict({"years": years_list, "Salary": current})
-    cur_df = cur_df.set_index("years")
-    cur_df["cumsum"] = cur_df["Salary"].cumsum()
+    now = datetime.datetime.now()
+    new_time = now + relativedelta(days=+14)
+    new_weight = m * new_time.timestamp() + b
 
-    alt_df = pd.DataFrame.from_dict({"years": years_list, "Salary": alt})
-    alt_df = alt_df.set_index("years")
-    alt_df["cumsum"] = alt_df["Salary"].cumsum()
-
-    return cur_df, alt_df
-
-
-def make_chart(cur_df, alt_df):
-    fig = go.Figure()
-    fig.add_trace(go.Bar(x=cur_df.index, y=cur_df["cumsum"], name="Current"))
-    fig.add_trace(go.Bar(x=alt_df.index, y=alt_df["cumsum"], name="Alternative"))
-    fig.update_layout(barmode="group", title="Future Cumulative Earnings")
-    fig.update_xaxes(title="Year")
-    fig.update_yaxes(title="Earnings")
-    fig.update_layout(yaxis_tickprefix="$", yaxis_tickformat=",.0f")
     fig.add_annotation(
-        text="Hover over data / interactive plot",
+        text=f"Weight in two weeks: {new_weight:.1f} lbs",
         xref="paper",
         yref="paper",
-        x=0.7,
+        x=0.9,
         y=1.1,
         showarrow=False,
     )
@@ -60,81 +87,29 @@ def make_chart(cur_df, alt_df):
     return fig
 
 
-cur_df, alt_df = calculate(years, chair_years, base_salary, chair_stipend, NEW_STIPEND)
+@st.cache()
+def get_MFP_weights(user: str, MFP_pass: str, date: datetime.date) -> Any:
+    client = myfitnesspal.Client(user, password=MFP_pass)
+    weight = client.get_measurements("Weight", date)
+    return weight
 
-fig = make_chart(cur_df, alt_df)
 
-st.plotly_chart(fig)
+start_date = datetime.date(2021, 5, 25)
+
+st.sidebar.header("Variables")
+
+user = st.sidebar.text_input("MFP Username", "Paradoxdruid")
+MFP_pass = st.sidebar.text_input("MFP Password")
+
+if st.sidebar.button("Process"):
+    weight = get_MFP_weights(user, MFP_pass, start_date)
+    df = MFP_dict_to_df(weight)
+    fig = new_plot_with_trend(
+        df, start="2021-05-25", end="2021-08-01", title="Weight Loss"
+    )
+
+    st.plotly_chart(fig)
 
 st.sidebar.markdown(
     """--------\nMade by [Andrew J. Bonham](https://github.com/Paradoxdruid)"""
 )
-
-with st.beta_expander("Source Code"):
-    st.code(
-        """
-import plotly.graph_objects as go
-import plotly.io
-import pandas as pd
-import streamlit as st
-
-plotly.io.templates.default = "seaborn"
-
-st.title("Chair Pay Calculator")
-st.sidebar.header("Variables")
-
-years = int(st.sidebar.number_input("Years Remaining at MSU Denver", value=10))
-chair_years = int(st.sidebar.number_input("Years Remaining as Chair", value=6))
-base_salary = float(st.sidebar.number_input("Current Base Salary", value=100000))
-chair_stipend = float(st.sidebar.number_input("Current Chair Stipend", value=30000))
-NEW_STIPEND = 28500
-
-
-def calculate(years, chair_years, base_salary, chair_stipend, NEW_STIPEND):
-    years_list = list(range(2021, 2021 + years))
-    five_sixths = (5 / 6) * (base_salary + chair_stipend)
-    current = ([base_salary + chair_stipend] * chair_years) + (
-        [five_sixths] * (years - chair_years)
-    )
-    alt = ([base_salary + NEW_STIPEND] * chair_years) + (
-        [base_salary] * (years - chair_years)
-    )
-
-    cur_df = pd.DataFrame.from_dict({"years": years_list, "Salary": current})
-    cur_df = cur_df.set_index("years")
-    cur_df["cumsum"] = cur_df["Salary"].cumsum()
-
-    alt_df = pd.DataFrame.from_dict({"years": years_list, "Salary": alt})
-    alt_df = alt_df.set_index("years")
-    alt_df["cumsum"] = alt_df["Salary"].cumsum()
-
-    return cur_df, alt_df
-
-
-def make_chart(cur_df, alt_df):
-    fig = go.Figure()
-    fig.add_trace(go.Bar(x=cur_df.index, y=cur_df["cumsum"], name="Current"))
-    fig.add_trace(go.Bar(x=alt_df.index, y=alt_df["cumsum"], name="Alternative"))
-    fig.update_layout(barmode="group", title="Future Cumulative Earnings")
-    fig.update_xaxes(title="Year")
-    fig.update_yaxes(title="Earnings")
-    fig.update_layout(yaxis_tickprefix="$", yaxis_tickformat=",.0f")
-    fig.add_annotation(
-        text="Hover over data / interactive plot",
-        xref="paper",
-        yref="paper",
-        x=0.7,
-        y=1.1,
-        showarrow=False,
-    )
-
-    return fig
-
-
-cur_df, alt_df = calculate(years, chair_years, base_salary, chair_stipend, NEW_STIPEND)
-
-fig = make_chart(cur_df, alt_df)
-
-st.plotly_chart(fig)
-"""
-    )
