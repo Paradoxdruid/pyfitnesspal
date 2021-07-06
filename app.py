@@ -94,19 +94,21 @@ def get_MFP_weights(user: str, MFP_pass: str, date: datetime.date) -> Any:
     return weight
 
 
-start_date = datetime.date(2021, 5, 25)
+# start_date = datetime.date(2021, 5, 25)
 
 st.sidebar.header("Variables")
 
 user = st.sidebar.text_input("MFP Username", "Paradoxdruid")
 MFP_pass = st.sidebar.text_input("MFP Password", type="password")
+start_date = st.sidebar.date_input("Start Date", datetime.date(2021, 5, 25))
+end_date = st.sidebar.date_input("End Date")
 
 if st.sidebar.button("Process"):
     weight = get_MFP_weights(user, MFP_pass, start_date)
     df = MFP_dict_to_df(weight)
-    fig = new_plot_with_trend(
-        df, start="2021-05-25", end="2021-08-01", title="Weight Loss"
-    )
+    start_dt = start_date.strftime("%Y-%m-%d")
+    end_dt = end_date.strftime("%Y-%m-%d")
+    fig = new_plot_with_trend(df, start=start_dt, end=end_dt, title="Weight Loss")
 
     st.plotly_chart(fig)
 
