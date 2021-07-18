@@ -1,4 +1,4 @@
-# msu-chairpay
+# PyFitnessPal
 
 ![GitHub](https://img.shields.io/github/license/Paradoxdruid/pyfitnesspal?color=success)  ![LGTM Grade](https://img.shields.io/lgtm/grade/python/github/Paradoxdruid/pyfitnesspal)  [![CodeFactor](https://www.codefactor.io/repository/github/paradoxdruid/pyfitnesspal/badge)](https://www.codefactor.io/repository/github/paradoxdruid/pyfitnesspal) [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
 
