@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Quick MyFitnessPal helper app."""
 
-# import plotly.graph_objects as go
 import plotly.io
 import pandas as pd
 import streamlit as st
@@ -15,6 +14,12 @@ from typing import Optional, Tuple, Dict, Any
 plotly.io.templates.default = "seaborn"
 
 st.title("PyFitnessPal")
+
+placeholder = st.empty()
+
+placeholder.markdown(
+    "Enter MyFitnessPal credentials and date range, then hit **Process**."
+)
 
 
 @st.cache()
@@ -67,7 +72,6 @@ def new_plot_with_trend(
     )
     fig.add_trace(fig2.data[1])
     results = px.get_trendline_results(fig2)
-    # results.px_fit_results.iloc[0].summary()
     m = results.px_fit_results.iloc[0].params[1]
     b = results.px_fit_results.iloc[0].params[0]
 
@@ -94,8 +98,6 @@ def get_MFP_weights(user: str, MFP_pass: str, date: datetime.date) -> Any:
     return weight
 
 
-# start_date = datetime.date(2021, 5, 25)
-
 st.sidebar.header("Variables")
 
 user = st.sidebar.text_input("MFP Username", "Paradoxdruid")
@@ -107,10 +109,10 @@ if st.sidebar.button("Process"):
     weight = get_MFP_weights(user, MFP_pass, start_date)
     df = MFP_dict_to_df(weight)
     start_dt = start_date.strftime("%Y-%m-%d")
-    end_dt = end_date.strftime("%Y-%m-%d")
+    end_dt = (end_date + relativedelta(days=+1)).strftime("%Y-%m-%d")
     fig = new_plot_with_trend(df, start=start_dt, end=end_dt, title="Weight Loss")
 
-    st.plotly_chart(fig)
+    placeholder.plotly_chart(fig)
 
 st.sidebar.markdown(
     """--------\nMade by [Andrew J. Bonham](https://github.com/Paradoxdruid)"""
